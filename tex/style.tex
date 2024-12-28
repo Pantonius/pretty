@@ -1,0 +1,12 @@
+\usepackage{xcolor}
+\definecolor{bluk}{RGB}{89, 199, 235}
+\definecolor{darkbluk}{RGB}{0, 169, 224}
+
+% redefine section style to have bluk underline
+\usepackage[normalem]{ulem}
+\newcommand\blukline{\bgroup\markoverwith{\textcolor{darkbluk}{\rule[-0.75ex]{2pt}{1.4pt}}}\ULon}
+
+\usepackage{sectsty}
+\sectionfont{\blukline}
+\subsectionfont{\blukline}
+\subsubsectionfont{\blukline}
