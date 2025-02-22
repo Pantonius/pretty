@@ -63,6 +63,7 @@ impl From<std::io::Error> for CompilationError {
 
 #[derive(Debug, Clone)]
 pub enum PrettyError {
+    ConfigDirNotFound,
     Initialization(String),
     Download(DownloadError),
     Compilation(CompilationError),
@@ -73,6 +74,7 @@ impl Display for PrettyError {
             f,
             "An Error occurred during execution: {}",
             match self {
+                PrettyError::ConfigDirNotFound => "Config directory could not be found".to_string(),
                 PrettyError::Initialization(err_msg) => err_msg.to_string(),
                 PrettyError::Download(err) => err.to_string(),
                 PrettyError::Compilation(err) => err.to_string(),

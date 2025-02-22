@@ -39,16 +39,15 @@ struct CLI {
     keep: bool,
 }
 
-fn initialize(ewd: &PathBuf) -> Result<(), PrettyError> {
+fn initialize(config_dir: &PathBuf) -> Result<(), PrettyError> {
     // prepare latex templates
     let template_style = include_str!("../templates/anton.sty");
     let template = include_str!("../templates/template.tex");
 
-    let base_path = PathBuf::from("~/.config/pretty");
-    fs::create_dir_all(&base_path)?;
+    fs::create_dir_all(&config_dir)?;
 
-    let template_style_path = base_path.clone().join("anton.sty");
-    let template_path = base_path.clone().join("template.tex");
+    let template_style_path = config_dir.clone().join("anton.sty");
+    let template_path = config_dir.clone().join("template.tex");
 
     let mut template_style_file = File::create(&template_style_path)?;
     template_style_file.write_all(template_style.as_bytes())?;
@@ -75,16 +74,23 @@ async fn download(url: &String, output_file_path: &PathBuf) -> Result<(), Downlo
     Ok(())
 }
 
-fn compile_markdown(markdown_file_path: &PathBuf) -> Result<(), CompilationError> {
+fn compile_markdown(
+    markdown_file_path: &PathBuf,
+    config_dir: &PathBuf,
+) -> Result<(), CompilationError> {
     // execute pandoc
     if cfg!(target_os = "linux") {
         let path = markdown_file_path
             .to_str()
             .ok_or_else(|| CompilationError::FileNotFound)?;
 
+        let template_path = config_dir.clone().join("template.tex");
+
         let cmd = format!(
-            "pandoc \"{}\" -f markdown -t pdf --template=\"~/.config/pretty/template.tex\" --pdf-engine=xelatex -o {}",
-            path, "pretty.pdf"
+            "pandoc \"{}\" -f markdown -t pdf --template=\"{}\" --pdf-engine=xelatex -o {}",
+            path,
+            template_path.display(),
+            "pretty.pdf"
         );
         println!("Executing: {}", cmd);
         let output = Command::new("sh").arg("-c").arg(cmd).output()?;
@@ -105,13 +111,14 @@ fn compile_markdown(markdown_file_path: &PathBuf) -> Result<(), CompilationError
 #[tokio::main]
 async fn main() -> Result<(), PrettyError> {
     let args = CLI::parse();
+
     let tmp_dir = temp_dir();
     let tmp_file = tmp_dir.clone().join("some.md");
-    let ewd = env::current_exe().unwrap_or_else(|_| {
-        return tmp_dir.clone();
-    });
 
-    initialize(&ewd)?;
+    let mut config_dir = dirs::config_dir().ok_or_else(|| PrettyError::ConfigDirNotFound)?;
+    config_dir.push("pretty");
+
+    initialize(&config_dir)?;
 
     // decide on the path to take
     if args.hedgedoc {
@@ -123,7 +130,7 @@ async fn main() -> Result<(), PrettyError> {
                 let url = format!("{}/{}/download", some_domain, some_document_id);
 
                 download(&url, &tmp_file).await?;
-                compile_markdown(&tmp_file)?;
+                compile_markdown(&tmp_file, &config_dir)?;
             } else {
                 println!("No document id given.");
             }
