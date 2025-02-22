@@ -1,0 +1,45 @@
+\documentclass{article}
+\usepackage{templates/anton}
+
+% pandoc shit
+$if(verbatim-in-note)$
+\usepackage{fancyvrb}
+$endif$
+$-- highlighting
+$if(listings)$
+\usepackage{listings}
+\newcommand{\passthrough}[1]{#1}
+\lstset{defaultdialect=[5.3]Lua}
+\lstset{defaultdialect=[x86masm]Assembler}
+$endif$
+$if(lhs)$
+\lstnewenvironment{code}{\lstset{language=Haskell,basicstyle=\small\ttfamily}}{}
+$endif$
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+$--
+$-- tables
+$--
+$if(tables)$
+\usepackage{longtable,booktabs,array}
+$if(multirow)$
+\usepackage{multirow}
+$endif$
+$endif$
+\usepackage{calc} % for calculating minipage widths
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+\title{$title$}
+\author{$author$}
+
+\begin{document}
+$if(maketitle)$
+  \maketitle
+$endif$
+$if(toc)$
+  \tableofcontents
+$endif$
+$body$
+\end{document}
