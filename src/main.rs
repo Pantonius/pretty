@@ -69,7 +69,7 @@ fn compile_markdown(config: &Config) -> Result<(), CompilationError> {
         let template_path = config.get_config_dir().join("template.tex");
 
         let cmd = format!(
-            "pandoc \"{}\" -f markdown -t pdf --template=\"{}\" -V mainfont=\"{}\" -V title:\"{}\" -V toc-title:\"{}\" --pdf-engine=xelatex -o {}",
+            "pandoc \"{}\" -f markdown -t pdf --template=\"{}\" -V mainfont=\"{}\" -V title:\"{}\" -V toc-title:\"{}\" --listings --pdf-engine=xelatex -o {}",
             path.display(),
             template_path.display(),
             config.get_font(),

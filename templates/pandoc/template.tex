@@ -15,75 +15,36 @@ $endif$
 $if(papersize)$
   $papersize$paper,
 $endif$
-$if(beamer)$
-  ignorenonframetext,
-$if(handout)$
-  handout,
-$endif$
-$if(aspectratio)$
-  aspectratio=$aspectratio$,
-$endif$
-$endif$
 $for(classoption)$
   $classoption$$sep$,
 $endfor$
 ]{$documentclass$}
-$if(beamer)$
-$if(background-image)$
-\usebackgroundtemplate{%
-  \includegraphics[width=\paperwidth]{$background-image$}%
+
+\usepackage{xcolor}
+\xdefinecolor{codebackground}{HTML}{f0f0f0}
+\xdefinecolor{primarycolor}{HTML}{2df598}
+\xdefinecolor{codeprimarycolor}{HTML}{25d181}
+\xdefinecolor{secondarycolor}{HTML}{222021}
+
+\usepackage{listings}
+\lstset{%
+  backgroundcolor=\color{codebackground},
+  basicstyle=\ttfamily,
+  breaklines=true,
+  columns=fullflexible,
+  frame=leftline,
+  numbers=left,
+  numbersep=5pt,
+  numberstyle=\tiny\color{gray},
+  showstringspaces=false,
+  tabsize=2,
+  xleftmargin=1em,
+  xrightmargin=1em,
+  keywordstyle=\bfseries\color{codeprimarycolor},
+  commentstyle=\color{gray},
+  stringstyle=\color{secondarycolor}
 }
-% In beamer background-image does not work well when other images are used, so this is the workaround
-\pgfdeclareimage[width=\paperwidth,height=\paperheight]{background}{$background-image$}
-\usebackgroundtemplate{\pgfuseimage{background}}
-$endif$
-\usepackage{pgfpages}
-\setbeamertemplate{caption}[numbered]
-\setbeamertemplate{caption label separator}{: }
-\setbeamercolor{caption name}{fg=normal text.fg}
-\beamertemplatenavigationsymbols$if(navigation)$$navigation$$else$empty$endif$
-$for(beameroption)$
-\setbeameroption{$beameroption$}
-$endfor$
-% Prevent slide breaks in the middle of a paragraph
-\widowpenalties 1 10000
-\raggedbottom
-$if(section-titles)$
-\setbeamertemplate{part page}{
-  \centering
-  \begin{beamercolorbox}[sep=16pt,center]{part title}
-    \usebeamerfont{part title}\insertpart\par
-  \end{beamercolorbox}
-}
-\setbeamertemplate{section page}{
-  \centering
-  \begin{beamercolorbox}[sep=12pt,center]{part title}
-    \usebeamerfont{section title}\insertsection\par
-  \end{beamercolorbox}
-}
-\setbeamertemplate{subsection page}{
-  \centering
-  \begin{beamercolorbox}[sep=8pt,center]{part title}
-    \usebeamerfont{subsection title}\insertsubsection\par
-  \end{beamercolorbox}
-}
-\AtBeginPart{
-  \frame{\partpage}
-}
-\AtBeginSection{
-  \ifbibliography
-  \else
-    \frame{\sectionpage}
-  \fi
-}
-\AtBeginSubsection{
-  \frame{\subsectionpage}
-}
-$endif$
-$endif$
-$if(beamerarticle)$
-\usepackage{beamerarticle} % needs to be loaded first
-$endif$
+
 \usepackage{amsmath,amssymb}
 $if(linestretch)$
 \usepackage{setspace}
@@ -110,27 +71,6 @@ $if(fontfamily)$
 $else$
 $-- Set default font before Beamer theme so the theme can override it
 \usepackage{lmodern}
-$endif$
-$-- Set Beamer theme before user font settings so they can override theme
-$if(beamer)$
-$if(theme)$
-\usetheme[$for(themeoptions)$$themeoptions$$sep$,$endfor$]{$theme$}
-$endif$
-$if(colortheme)$
-\usecolortheme{$colortheme$}
-$endif$
-$if(fonttheme)$
-\usefonttheme{$fonttheme$}
-$endif$
-$if(mainfont)$
-\usefonttheme{serif} % use mainfont rather than sansfont for slide text
-$endif$
-$if(innertheme)$
-\useinnertheme{$innertheme$}
-$endif$
-$if(outertheme)$
-\useoutertheme{$outertheme$}
-$endif$
 $endif$
 $-- User font settings (must come after default font and Beamer theme)
 $if(fontfamily)$
@@ -226,26 +166,6 @@ $endif$
 $if(verbatim-in-note)$
 \usepackage{fancyvrb}
 $endif$
-\usepackage{xcolor}
-$if(geometry)$
-$if(beamer)$
-\geometry{$for(geometry)$$geometry$$sep$,$endfor$}
-$else$
-\usepackage[$for(geometry)$$geometry$$sep$,$endfor$]{geometry}
-$endif$
-$endif$
-$if(beamer)$
-\newif\ifbibliography
-$endif$
-$if(listings)$
-\usepackage{listings}
-\newcommand{\passthrough}[1]{#1}
-\lstset{defaultdialect=[5.3]Lua}
-\lstset{defaultdialect=[x86masm]Assembler}
-$endif$
-$if(lhs)$
-\lstnewenvironment{code}{\lstset{language=Haskell,basicstyle=\small\ttfamily}}{}
-$endif$
 $if(highlighting-macros)$
 $highlighting-macros$
 $endif$
@@ -255,13 +175,6 @@ $if(multirow)$
 \usepackage{multirow}
 $endif$
 \usepackage{calc} % for calculating minipage widths
-$if(beamer)$
-\usepackage{caption}
-% Make caption package work with longtable
-\makeatletter
-\def\fnum@table{\tablename~\thetable}
-\makeatother
-$else$
 % Correct order of tables after \paragraph or \subparagraph
 \usepackage{etoolbox}
 \makeatletter
@@ -270,7 +183,6 @@ $else$
 % Allow footnotes in longtable head/foot
 \IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
 \makesavenoteenv{longtable}
-$endif$
 $endif$
 $if(graphics)$
 \usepackage{graphicx}
@@ -316,20 +228,6 @@ $else$
 $endif$
 $if(subfigure)$
 \usepackage{subcaption}
-$endif$
-$if(beamer)$
-$else$
-$if(block-headings)$
-% Make \paragraph and \subparagraph free-standing
-\ifx\paragraph\undefined\else
-  \let\oldparagraph\paragraph
-  \renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
-\fi
-\ifx\subparagraph\undefined\else
-  \let\oldsubparagraph\subparagraph
-  \renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
-\fi
-$endif$
 $endif$
 $if(pagestyle)$
 \pagestyle{$pagestyle$}
@@ -424,6 +322,14 @@ $if(nocite-ids)$
 $endif$
 $if(csquotes)$
 \usepackage{csquotes}
+$else$
+\usepackage[many]{tcolorbox}
+\tcbset{enhanced, colback=primarycolor!10, colframe=primarycolor!10, borderline west={2pt}{0pt}{primarycolor}, coltext=black, fonttitle=\bfseries, coltitle=black, arc=0mm}
+\renewenvironment{quote}[1][]{%
+    \begin{tcolorbox}[title=#1]
+}{%
+    \end{tcolorbox}
+}
 $endif$
 \usepackage{bookmark}
 \IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
@@ -463,47 +369,29 @@ $else$
   hidelinks,
 $endif$
 $endif$
-  pdfcreator={LaTeX via pandoc}}
+  pdfcreator={LaTeX via pandoc in pretty}}
 
 $if(title)$
 \title{$title$$if(thanks)$\thanks{$thanks$}$endif$}
 $endif$
 $if(subtitle)$
-$if(beamer)$
-$else$
 \usepackage{etoolbox}
 \makeatletter
 \providecommand{\subtitle}[1]{% add subtitle to \maketitle
   \apptocmd{\@title}{\par {\large #1 \par}}{}{}
 }
 \makeatother
-$endif$
 \subtitle{$subtitle$}
 $endif$
 \author{$for(author)$$author$$sep$ \and $endfor$}
 \date{$date$}
-$if(beamer)$
-$if(institute)$
-\institute{$for(institute)$$institute$$sep$ \and $endfor$}
-$endif$
-$if(titlegraphic)$
-\titlegraphic{\includegraphics{$titlegraphic$}}
-$endif$
-$if(logo)$
-\logo{\includegraphics{$logo$}}
-$endif$
-$endif$
 
 \begin{document}
 $if(has-frontmatter)$
 \frontmatter
 $endif$
 $if(title)$
-$if(beamer)$
-\frame{\titlepage}
-$else$
 \maketitle
-$endif$
 $if(abstract)$
 \begin{abstract}
 $abstract$
@@ -519,14 +407,6 @@ $if(toc)$
 $if(toc-title)$
 \renewcommand*\contentsname{$toc-title$}
 $endif$
-$if(beamer)$
-\begin{frame}[allowframebreaks]
-$if(toc-title)$
-  \frametitle{$toc-title$}
-$endif$
-  \tableofcontents[hideallsubsections]
-\end{frame}
-$else$
 {
 $if(colorlinks)$
 \hypersetup{linkcolor=$if(toccolor)$$toccolor$$else$$endif$}
@@ -534,7 +414,6 @@ $endif$
 \setcounter{tocdepth}{$toc-depth$}
 \tableofcontents
 }
-$endif$
 $endif$
 $if(lof)$
 \listoffigures
@@ -562,26 +441,12 @@ $else$
 \renewcommand\refname{$biblio-title$}
 $endif$
 $endif$
-$if(beamer)$
-\begin{frame}[allowframebreaks]{$biblio-title$}
-  \bibliographytrue
-$endif$
   \bibliography{$for(bibliography)$$bibliography$$sep$,$endfor$}
-$if(beamer)$
-\end{frame}
-$endif$
 
 $endif$
 $endif$
 $if(biblatex)$
-$if(beamer)$
-\begin{frame}[allowframebreaks]{$biblio-title$}
-  \bibliographytrue
-  \printbibliography[heading=none]
-\end{frame}
-$else$
 \printbibliography$if(biblio-title)$[title=$biblio-title$]$endif$
-$endif$
 
 $endif$
 $for(include-after)$

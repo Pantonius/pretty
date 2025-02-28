@@ -67,7 +67,7 @@ impl Config {
         // check for template.tex
         let standard_template_path = config_dir.clone().join("template.tex");
 
-        if let Ok(false) = config_file.try_exists() {
+        if let Ok(false) = standard_template_path.try_exists() {
             let standard_template_file = File::create(&standard_template_path);
             if let Ok(mut fs_file) = standard_template_file {
                 let _ = fs_file.write_all(standard_template.as_bytes());
