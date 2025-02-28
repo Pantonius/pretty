@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Display, path::PathBuf};
+use std::{error::Error, fmt::Display};
 
 use reqwest::StatusCode;
 
@@ -63,16 +63,7 @@ impl From<std::io::Error> for CompilationError {
 }
 
 #[derive(Debug, Clone)]
-pub enum PrettyInvalidArgs {
-    InputPath,
-    OutputPath,
-}
-
-#[derive(Debug, Clone)]
 pub enum PrettyError {
-    InvalidInput(PrettyInvalidArgs),
-    ConfigDirNotFound,
-    NonExistantPath(PathBuf),
     Initialization(String),
     Download(DownloadError),
     Compilation(CompilationError),
@@ -84,13 +75,6 @@ impl Display for PrettyError {
             f,
             "An Error occurred during execution: {}",
             match self {
-                PrettyError::InvalidInput(arg) => match arg {
-                    PrettyInvalidArgs::InputPath => String::from("Invalid input path"),
-                    PrettyInvalidArgs::OutputPath => String::from("Invalid output path"),
-                },
-                PrettyError::ConfigDirNotFound =>
-                    String::from("Config directory could not be found"),
-                PrettyError::NonExistantPath(path) => format!("Couldn't find {}", path.display()),
                 PrettyError::Initialization(err_msg) => err_msg.to_string(),
                 PrettyError::Download(err) => err.to_string(),
                 PrettyError::Compilation(err) => err.to_string(),

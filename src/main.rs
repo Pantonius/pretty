@@ -1,18 +1,11 @@
+mod config;
 mod error;
 use crate::error::{CompilationError, DownloadError, PrettyError};
 
-use std::{
-    env::{current_dir, temp_dir},
-    fs::{self, File},
-    io::Write,
-    path::PathBuf,
-    process::Command,
-};
+use std::{env::temp_dir, fs::File, io::Write, path::PathBuf, process::Command};
 
 use clap::{value_parser, Parser};
-use error::PrettyInvalidArgs;
-
-const DEFAULT_FILE_NAME: &str = "pretty";
+use config::Config;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -29,7 +22,7 @@ struct CLI {
     #[arg(short = 'H')]
     hedgedoc: bool,
 
-    /// the domain of the source instance (e.g. HedgeDoc); For instance: https://demo.hedgedoc.org
+    /// the domain of the source instance (e.g. HedgeDoc)
     #[arg(short = 'D', long = "domain")]
     domain: Option<String>,
 
@@ -41,28 +34,9 @@ struct CLI {
     #[arg(short = 'k', long = "keep")]
     keep: bool,
 
-    // the output file (default: "pretty.pdf")
+    /// the output file or directory
     #[arg(short = 'o', long = "output", value_parser=value_parser!(PathBuf), default_value="pretty.pdf")]
     output_path: Option<std::path::PathBuf>,
-}
-
-fn initialize(config_dir: &PathBuf) -> Result<(), PrettyError> {
-    // prepare latex templates
-    let template_style = include_str!("../templates/anton.sty");
-    let template = include_str!("../templates/template.tex");
-
-    fs::create_dir_all(&config_dir)?;
-
-    let template_style_path = config_dir.clone().join("anton.sty");
-    let template_path = config_dir.clone().join("template.tex");
-
-    let mut template_style_file = File::create(&template_style_path)?;
-    template_style_file.write_all(template_style.as_bytes())?;
-
-    let mut template_file = File::create(&template_path)?;
-    template_file.write_all(template.as_bytes())?;
-
-    Ok(())
 }
 
 async fn download(url: &String, output_file_path: &PathBuf) -> Result<(), DownloadError> {
@@ -81,26 +55,26 @@ async fn download(url: &String, output_file_path: &PathBuf) -> Result<(), Downlo
     Ok(())
 }
 
-fn compile_markdown(
-    markdown_file_path: &PathBuf,
-    pdf_file_path: &PathBuf,
-    config_dir: &PathBuf,
-) -> Result<(), CompilationError> {
+fn compile_markdown(config: &Config) -> Result<(), CompilationError> {
     // execute pandoc
     if cfg!(target_os = "linux") {
-        let path = markdown_file_path
-            .to_str()
+        let path = config
+            .get_input_path()
             .ok_or_else(|| CompilationError::FileNotFound)?;
-        let output_path = pdf_file_path
+        let output_path = config.get_output_pdf();
+        let output_path = output_path
             .to_str()
             .ok_or_else(|| CompilationError::InvalidOutputPath)?;
 
-        let template_path = config_dir.clone().join("template.tex");
+        let template_path = config.get_config_dir().join("template.tex");
 
         let cmd = format!(
-            "pandoc \"{}\" -f markdown -t pdf --template=\"{}\" --pdf-engine=xelatex -o {}",
-            path,
+            "pandoc \"{}\" -f markdown -t pdf --template=\"{}\" -V mainfont=\"{}\" -V title:\"{}\" -V toc-title:\"{}\" --pdf-engine=xelatex -o {}",
+            path.display(),
             template_path.display(),
+            config.get_font(),
+            config.get_title(),
+            config.get_toc_title(),
             output_path
         );
         println!("Executing: {}", cmd);
@@ -119,74 +93,59 @@ fn compile_markdown(
     Ok(())
 }
 
-fn process_output_path(output_path: PathBuf) -> Result<(PathBuf, String), PrettyError> {
-    let output_dir: PathBuf;
-    let output_file_name: String;
-
-    // check type of output_path
-    if output_path.is_dir() {
-        output_dir = output_path.to_path_buf();
-        output_file_name = String::from(DEFAULT_FILE_NAME);
-    } else {
-        output_file_name = match output_path.file_stem() {
-            Some(name) => String::from(name.to_str().unwrap_or_else(|| DEFAULT_FILE_NAME)),
-            None => String::from(DEFAULT_FILE_NAME),
-        };
-        output_dir = match output_path.parent() {
-            Some(dir) => dir.to_path_buf(),
-            None => current_dir()?,
-        };
-    }
-
-    // check if the output_dir exists
-    if !output_dir.exists() {
-        return Err(PrettyError::NonExistantPath(output_path.to_path_buf()));
-    }
-
-    Ok((output_dir, output_file_name))
-}
-
 #[tokio::main]
 async fn main() -> Result<(), PrettyError> {
-    let args = CLI::parse();
+    let args: CLI = CLI::parse();
+    let mut config: Config = Config::default();
+    config.load_config();
 
-    // config directory: <config_dir>/pretty
-    let mut config_dir = dirs::config_dir().ok_or_else(|| PrettyError::ConfigDirNotFound)?;
-    config_dir.push("pretty");
+    // input path
+    if let Some(path) = args.input_path {
+        config.set_input_path(path);
+    }
 
     // output path
-    let (output_dir, output_file_name) = match args.output_path {
-        Some(path) => process_output_path(path),
-        None => Err(PrettyError::InvalidInput(PrettyInvalidArgs::OutputPath)),
-    }?;
-    let pdf_path = output_dir.clone().join(output_file_name.clone() + ".pdf");
+    if let Some(path) = args.output_path {
+        config.set_output_path(path)?;
+    }
 
-    // initialize the config directory
-    // we are abusing this to create the physical latex files in the filesystem
-    initialize(&config_dir)?;
+    // headgedoc
+    if let Some(ref domain) = args.domain {
+        config.set_domain(domain);
+    }
+    if let Some(ref document_id) = args.document_id {
+        config.set_document_id(document_id);
+    }
+
+    // flags
+    config.set_hedgedoc(args.hedgedoc);
+    config.set_keep(args.keep);
+    config.set_show(args.show);
 
     // decide on the path to take
-    if args.hedgedoc {
+    if config.is_hedgedoc() {
         // remote source: Use `domain` and `document_id` to download and compile
         let tmp_dir = temp_dir();
         let tmp_file = tmp_dir.clone().join("pretty.md");
 
         // check that `domain` and `document_id` are given
-        if let Some(some_domain) = args.domain {
-            if let Some(some_document_id) = args.document_id {
+        if let Some(some_domain) = config.get_domain() {
+            if let Some(some_document_id) = config.get_document_id() {
                 let url = format!("{}/{}/download", some_domain, some_document_id);
 
                 download(&url, &tmp_file).await?;
-                compile_markdown(&tmp_file, &pdf_path, &config_dir)?;
 
-                if args.keep {
+                config.set_input_path(tmp_file.clone());
+                compile_markdown(&config)?;
+
+                if config.should_keep() {
                     // copy tmp_file over to output dir
-                    let keep_file = output_dir.clone().join(output_file_name.clone() + ".md");
+                    let keep_file = config.get_output_md();
 
                     std::fs::copy(&tmp_file, &keep_file)
                         .map_err(|err| PrettyError::Copy(err.to_string()))?;
 
-                    println!("Copied markdown file to {}", keep_file.display());
+                    println!("Copied markdown file to {:?}", keep_file);
                 }
             } else {
                 println!("No document id given.");
@@ -196,16 +155,12 @@ async fn main() -> Result<(), PrettyError> {
         }
     } else {
         // local source: Use `path` as the markdown file to be compiled
-        if let Some(markdown_path) = args.input_path {
-            compile_markdown(&markdown_path, &pdf_path, &config_dir)?;
-        } else {
-            return Err(PrettyError::InvalidInput(PrettyInvalidArgs::InputPath));
-        }
+        compile_markdown(&config)?;
     }
 
     // show output pdf
-    if args.show {
-        open::that(pdf_path)?;
+    if config.should_show() {
+        open::that(&config.get_output_pdf())?;
     }
 
     Ok(())
