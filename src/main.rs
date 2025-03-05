@@ -39,6 +39,7 @@ struct CLI {
     output_path: Option<std::path::PathBuf>,
 }
 
+/// Downloads a markdown file from a hedgedoc instance
 async fn download(url: &String, output_file_path: &PathBuf) -> Result<(), DownloadError> {
     let res = reqwest::get(url).await?;
 
@@ -55,6 +56,7 @@ async fn download(url: &String, output_file_path: &PathBuf) -> Result<(), Downlo
     Ok(())
 }
 
+/// compiles a markdown file according to the specified config
 fn compile_markdown(config: &Config) -> Result<(), CompilationError> {
     // execute pandoc
     if cfg!(target_os = "linux") {
@@ -69,12 +71,13 @@ fn compile_markdown(config: &Config) -> Result<(), CompilationError> {
         let template_path = config.get_config_dir().join("template.tex");
 
         let cmd = format!(
-            "pandoc \"{}\" -f markdown -t pdf --template=\"{}\" -V mainfont=\"{}\" -V title:\"{}\" -V toc-title:\"{}\" --listings --pdf-engine=xelatex -o {}",
+            "pandoc \"{}\" -f markdown -t pdf --template=\"{}\" -V mainfont=\"{}\" -V title:\"{}\" -V toc-title:\"{}\" -V author:\"{}\" --listings --pdf-engine=xelatex -o {}",
             path.display(),
             template_path.display(),
             config.get_font(),
             config.get_title(),
             config.get_toc_title(),
+            config.get_author(),
             output_path
         );
         println!("Executing: {}", cmd);
@@ -109,7 +112,7 @@ async fn main() -> Result<(), PrettyError> {
         config.set_output_path(path)?;
     }
 
-    // headgedoc
+    // hedgedoc
     if let Some(ref domain) = args.domain {
         config.set_domain(domain);
     }
