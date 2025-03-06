@@ -14,21 +14,103 @@ use crate::error::PrettyError;
 #[derive(Deserialize, Debug, Clone)]
 pub struct Config {
     input_path: Option<PathBuf>,
+
+    #[serde(default)]
     output_dir: PathBuf,
+
+    #[serde(default)]
     output_file_name: String,
+
+    #[serde(default)]
     config_dir: PathBuf,
+
+    #[serde(default)]
     config_file: PathBuf,
+
+    #[serde(default)]
     title: String,
+
+    #[serde(default)]
     font: String,
+
     author: Option<String>,
     logo: Option<String>,
+
+    #[serde(default)]
     toc_title: String,
+
     toc_subtitle: Option<String>,
+
+    #[serde(default)]
     show: bool,
+
+    #[serde(default)]
     keep: bool,
+
     domain: Option<String>,
     document_id: Option<String>,
+
+    #[serde(default)]
     hedgedoc: bool,
+}
+
+trait Mergable {
+    fn merge(self: &Self, other: &Self) -> Self;
+}
+
+impl Mergable for String {
+    fn merge(self: &Self, other: &Self) -> Self {
+        if self.is_empty() {
+            other.to_string()
+        } else {
+            self.to_string()
+        }
+    }
+}
+
+impl Mergable for PathBuf {
+    fn merge(self: &Self, other: &Self) -> Self {
+        if *self == PathBuf::new() {
+            other.to_path_buf()
+        } else {
+            self.to_path_buf()
+        }
+    }
+}
+
+impl Mergable for bool {
+    fn merge(self: &Self, other: &Self) -> Self {
+        *self || *other
+    }
+}
+
+impl<T: Clone> Mergable for Option<T> {
+    fn merge(self: &Self, other: &Self) -> Self {
+        self.clone().or_else(|| other.clone())
+    }
+}
+
+impl Mergable for Config {
+    fn merge(self: &Self, other: &Self) -> Self {
+        Self {
+            input_path: (&self.input_path).merge(&other.input_path),
+            output_dir: (&self.output_dir).merge(&other.output_dir),
+            output_file_name: (&self.output_file_name).merge(&other.output_file_name),
+            config_file: (&self.config_file).merge(&other.config_file),
+            config_dir: (&self.config_dir).merge(&other.config_dir),
+            title: (&self.title).merge(&other.title),
+            font: (&self.font).merge(&other.font),
+            author: (&self.author).merge(&other.author),
+            logo: (&self.logo).merge(&other.logo),
+            toc_title: (&self.toc_title).merge(&other.toc_title),
+            toc_subtitle: (&self.toc_subtitle).merge(&other.toc_subtitle),
+            show: (&self.show).merge(&other.show),
+            keep: (&self.keep).merge(&other.keep),
+            domain: (&self.domain).merge(&other.domain),
+            document_id: (&self.document_id).merge(&other.document_id),
+            hedgedoc: (&self.hedgedoc).merge(&other.hedgedoc),
+        }
+    }
 }
 
 impl Default for Config {
@@ -97,65 +179,23 @@ impl Config {
 
     /// Loads the config from a pretty.yaml file in the current working directory or the
     /// pretty subdirectory of the config folder of the system
-    pub fn load_config(&mut self) -> Result<(), PrettyError> {
-        let cwd = current_dir().unwrap_or_default().join("pretty");
+    pub fn load_config(&mut self) {
+        let cwd = current_dir().unwrap_or_default();
 
         if let Ok(conf) = LibConfig::builder()
-            .set_default("config_dir", self.config_dir.to_str().unwrap_or_default())
-            .expect("Whoopsie")
-            .set_default("config_file", self.config_file.to_str().unwrap_or_default())
-            .expect("Whoopsie")
-            .set_default(
-                "input_path",
-                self.input_path
-                    .clone()
-                    .unwrap_or_default()
-                    .to_str()
-                    .unwrap_or_default(),
-            )
-            .expect("Whoopsie")
-            .set_default("output_dir", self.output_dir.to_str().unwrap_or_default())
-            .expect("Whoopsie")
-            .set_default("output_file_name", self.output_file_name.clone())
-            .expect("Whoopsie")
-            .set_default("title", self.title.clone())
-            .expect("Whoopsie")
-            .set_default("author", self.author.clone().unwrap_or_default())
-            .expect("Whoopsie")
-            .set_default("font", self.font.clone())
-            .expect("Whoopsie")
-            .set_default("logo", self.logo.clone().unwrap_or_default())
-            .expect("Whoopsie")
-            .set_default("toc_title", self.toc_title.clone())
-            .expect("Whoopsie")
-            .set_default("toc_subtitle", self.toc_subtitle.clone())
-            .expect("Whoopsie")
-            .set_default("show", self.show)
-            .expect("Whoopsie")
-            .set_default("keep", self.keep)
-            .expect("Whoopsie")
-            .set_default("domain", self.domain.clone().unwrap_or_default())
-            .expect("Whoopsie")
-            .set_default("hedgedoc", self.hedgedoc)
-            .expect("Whoopsie")
-            .set_default("document_id", self.document_id.clone().unwrap_or_default())
-            .expect("Whoopsie")
             .add_source(config::File::with_name(
                 self.config_file.to_str().get_or_insert(""),
             ))
-            .add_source(config::File::with_name(cwd.to_str().get_or_insert("")).required(false))
+            .add_source(
+                config::File::with_name(cwd.join("pretty").to_str().get_or_insert(""))
+                    .required(false),
+            )
             .build()
         {
-            println!("{:#?}", conf);
             let pretty_conf = conf.try_deserialize::<Config>().unwrap_or_default();
-            println!("{:#?}", pretty_conf);
 
-            *self = pretty_conf;
-
-            return Ok(());
+            *self = self.merge(&pretty_conf);
         }
-
-        return Ok(());
     }
 
     /// Returns the configured config directory
